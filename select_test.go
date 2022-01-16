@@ -3,9 +3,12 @@ package main
 import (
 	"context"
 	"database/sql"
-	"github.com/gobuffalo/pop/v6"
+	"errors"
 	"testing"
 
+	"github.com/gobuffalo/pop/v6"
+
+	"github.com/volatiletech/boilbench/golas"
 	"github.com/volatiletech/boilbench/gorms"
 	"github.com/volatiletech/boilbench/gorps"
 	"github.com/volatiletech/boilbench/mimic"
@@ -32,6 +35,26 @@ func BenchmarkGORMSelectAll(b *testing.B) {
 			err := gormdb.Find(&store).Error
 			if err != nil {
 				b.Fatal(err)
+			}
+			store = nil
+		}
+	})
+}
+
+func BenchmarkGOLASelectAll(b *testing.B) {
+	query := jetQuery()
+	mimic.NewQuery(query)
+
+	db, err := sql.Open("mimic", "")
+	if err != nil {
+		panic(err)
+	}
+
+	b.Run("golas", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			store := golas.Query[golas.Jet](db, "select * from jets")
+			if len(store) != 5 {
+				b.Fatal(errors.New("gola load failed"))
 			}
 			store = nil
 		}
