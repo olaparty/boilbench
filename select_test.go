@@ -61,6 +61,26 @@ func BenchmarkGOLASelectAll(b *testing.B) {
 	})
 }
 
+func BenchmarkGOLA2SelectAll(b *testing.B) {
+	query := jetQuery()
+	mimic.NewQuery(query)
+
+	db, err := sql.Open("mimic", "")
+	if err != nil {
+		panic(err)
+	}
+
+	b.Run("golas", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			store := golas.QueryReflect[golas.Jet](db, "select * from jets")
+			if len(store) != 5 {
+				b.Fatal(errors.New("gola load failed"))
+			}
+			store = nil
+		}
+	})
+}
+
 func BenchmarkGORPSelectAll(b *testing.B) {
 	query := jetQuery()
 	mimic.NewQuery(query)

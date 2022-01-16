@@ -3,6 +3,7 @@ package golas
 import (
 	"database/sql"
 	"log"
+	"reflect"
 
 	"github.com/volatiletech/null/v8"
 )
@@ -17,6 +18,13 @@ var table *UserTable
 
 type TableType interface {
 	GetTableName() string
+}
+
+type ColumnType interface {
+	GetColumnName() string
+	GetValPointer() interface{}
+	IsPrimaryKey() bool
+	GetTableType() TableType
 }
 
 // Jet struct
@@ -336,8 +344,39 @@ func Query[T any, PT PointerType[T]](db *sql.DB, query string) []*T {
 			rows.Scan(data...)
 			result = append(result, u)
 		}
-
 	}
 
 	return result
+}
+
+func QueryReflect[T any, PT PointerType[T]](db *sql.DB, query string) []*T {
+	var result []*T
+	var u *T
+
+	rows, err2 := db.Query(query)
+
+	if err2 != nil {
+		log.Fatal(err2)
+	}
+
+	for rows.Next() {
+		u = new(T)
+		data := StrutForScan(u)
+		rows.Scan(data...)
+		result = append(result, u)
+	}
+
+	return result
+}
+
+func StrutForScan[T any, PT PointerType[T]](u PT) (pointers []interface{}) {
+	val := reflect.ValueOf(u).Elem()
+	pointers = make([]interface{}, 0, val.NumField())
+	for i := 0; i < val.NumField(); i++ {
+		valueField := val.Field(i)
+		if f, ok := valueField.Addr().Interface().(ColumnType); ok {
+			pointers = append(pointers, f.GetValPointer())
+		}
+	}
+	return
 }
