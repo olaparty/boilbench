@@ -81,6 +81,91 @@ func BenchmarkGOLA2SelectAll(b *testing.B) {
 	})
 }
 
+func BenchmarkGOLA3SelectAll(b *testing.B) {
+	query := jetQuery()
+	mimic.NewQuery(query)
+
+	db, err := sql.Open("mimic", "")
+	if err != nil {
+		panic(err)
+	}
+
+	b.Run("golas", func(b *testing.B) {
+		var j *golas.Jet
+		for i := 0; i < b.N; i++ {
+			store := golas.QueryStruct(db, "select * from jets", j)
+			if len(store) != 5 {
+				b.Fatal(errors.New("gola load failed"))
+			}
+			store = nil
+		}
+	})
+}
+
+func BenchmarkGOLA4SelectAll(b *testing.B) {
+	query := jetQuery()
+	mimic.NewQuery(query)
+
+	db, err := sql.Open("mimic", "")
+	if err != nil {
+		panic(err)
+	}
+
+	b.Run("golas", func(b *testing.B) {
+		var j *golas.Jet
+		for i := 0; i < b.N; i++ {
+			store := golas.QueryStruct(db, "select * from jets", j)
+			if len(store) != 5 {
+				b.Fatal(errors.New("gola load failed"))
+			}
+
+			objs := make([]golas.Jet, len(store))
+			for i, j := range store {
+				objs[i] = *j.(*golas.Jet)
+			}
+			objs = nil
+			store = nil
+		}
+	})
+}
+
+func BenchmarkGOLA5SelectAll(b *testing.B) {
+	query := jetQuery()
+	mimic.NewQuery(query)
+
+	db, err := sql.Open("mimic", "")
+	if err != nil {
+		panic(err)
+	}
+
+	b.Run("golas", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			store := make([]*golas.Jet, 0, 8)
+
+			golas.QueryFunc(db, "select * from jets", func(row *sql.Rows) {
+				o := new(golas.Jet)
+				row.Scan(
+					o.ID.GetValPointer(),
+					o.PilotID.GetValPointer(),
+					o.AirportID.GetValPointer(),
+					o.Name.GetValPointer(),
+					o.Color.GetValPointer(),
+					o.UUID.GetValPointer(),
+					o.Identifier.GetValPointer(),
+					o.Cargo.GetValPointer(),
+					o.Manifest.GetValPointer(),
+				)
+				store = append(store, o)
+			})
+
+			if len(store) != 5 {
+				b.Fatal(errors.New("gola load failed"))
+			}
+			store = nil
+		}
+	})
+}
+
 func BenchmarkGORPSelectAll(b *testing.B) {
 	query := jetQuery()
 	mimic.NewQuery(query)

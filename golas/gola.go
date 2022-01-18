@@ -20,6 +20,10 @@ type TableType interface {
 	GetTableName() string
 }
 
+type ScanableStruct interface {
+	DoScan(*sql.Rows) interface{}
+}
+
 type ColumnType interface {
 	GetColumnName() string
 	GetValPointer() interface{}
@@ -310,6 +314,24 @@ func (j *Jet) GetPointers() []interface{} {
 	}
 }
 
+type Scanable func(row *sql.Rows)
+
+func (j *Jet) DoScan(row *sql.Rows) interface{} {
+	o := new(Jet)
+	row.Scan(
+		o.ID.GetValPointer(),
+		o.PilotID.GetValPointer(),
+		o.AirportID.GetValPointer(),
+		o.Name.GetValPointer(),
+		o.Color.GetValPointer(),
+		o.UUID.GetValPointer(),
+		o.Identifier.GetValPointer(),
+		o.Cargo.GetValPointer(),
+		o.Manifest.GetValPointer(),
+	)
+	return o
+}
+
 type PointerType[T any] interface {
 	*T
 }
@@ -347,6 +369,35 @@ func Query[T any, PT PointerType[T]](db *sql.DB, query string) []*T {
 	}
 
 	return result
+}
+
+func QueryStruct(db *sql.DB, query string, scanable ScanableStruct) []interface{} {
+	var result []interface{}
+
+	rows, err2 := db.Query(query)
+
+	if err2 != nil {
+		log.Fatal(err2)
+	}
+
+	for rows.Next() {
+		u := scanable.DoScan(rows)
+		result = append(result, u)
+	}
+
+	return result
+}
+
+func QueryFunc(db *sql.DB, query string, scanable Scanable) {
+	rows, err2 := db.Query(query)
+
+	if err2 != nil {
+		log.Fatal(err2)
+	}
+
+	for rows.Next() {
+		scanable(rows)
+	}
 }
 
 func QueryReflect[T any, PT PointerType[T]](db *sql.DB, query string) []*T {
