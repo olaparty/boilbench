@@ -420,6 +420,39 @@ func QueryReflect[T any, PT PointerType[T]](db *sql.DB, query string) []*T {
 	return result
 }
 
+func QueryStructReflect(db *sql.DB, query string, obj interface{}) []interface{} {
+	var result []interface{}
+
+	rows, err2 := db.Query(query)
+
+	if err2 != nil {
+		log.Fatal(err2)
+	}
+	t := reflect.ValueOf(obj)
+
+	for rows.Next() {
+		u := reflect.New(t.Elem().Type())
+
+		data := StrutForScanPointer(u.Interface())
+		rows.Scan(data...)
+		result = append(result, u.Interface())
+	}
+
+	return result
+}
+
+func StrutForScanPointer(u interface{}) (pointers []interface{}) {
+	val := reflect.ValueOf(u).Elem()
+	pointers = make([]interface{}, 0, val.NumField())
+	for i := 0; i < val.NumField(); i++ {
+		valueField := val.Field(i)
+		if f, ok := valueField.Addr().Interface().(ColumnType); ok {
+			pointers = append(pointers, f.GetValPointer())
+		}
+	}
+	return
+}
+
 func StrutForScan[T any, PT PointerType[T]](u PT) (pointers []interface{}) {
 	val := reflect.ValueOf(u).Elem()
 	pointers = make([]interface{}, 0, val.NumField())

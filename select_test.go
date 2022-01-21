@@ -166,6 +166,59 @@ func BenchmarkGOLA5SelectAll(b *testing.B) {
 	})
 }
 
+func BenchmarkGOLA6SelectAll(b *testing.B) {
+	query := jetQuery()
+	mimic.NewQuery(query)
+
+	db, err := sql.Open("mimic", "")
+	if err != nil {
+		panic(err)
+	}
+
+	b.Run("golas", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			store := make([]*golas.Jet, 0, 8)
+			var o golas.Jet
+			golas.QueryFunc(db, "select * from jets", func(row *sql.Rows) {
+				store = append(store, o.DoScan(row).(*golas.Jet))
+			})
+
+			if len(store) != 5 {
+				b.Fatal(errors.New("gola load failed"))
+			}
+			store = nil
+		}
+	})
+}
+
+func BenchmarkGOLA7SelectAll(b *testing.B) {
+	// using full reflection without generic
+	query := jetQuery()
+	mimic.NewQuery(query)
+
+	db, err := sql.Open("mimic", "")
+	if err != nil {
+		panic(err)
+	}
+
+	b.Run("golas", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			var j golas.Jet
+			store := golas.QueryStructReflect(db, "select * from jets", &j)
+			if len(store) != 5 {
+				b.Fatal(errors.New("gola load failed"))
+			}
+
+			objs := make([]*golas.Jet, len(store))
+			for i, j := range store {
+				objs[i] = j.(*golas.Jet)
+			}
+			objs = nil
+			store = nil
+		}
+	})
+}
+
 func BenchmarkGORPSelectAll(b *testing.B) {
 	query := jetQuery()
 	mimic.NewQuery(query)
